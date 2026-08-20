@@ -2,7 +2,7 @@
 **Welcome to DOSBox-X Agent86.**
 
 > [!IMPORTANT]
-> This repository is Michael P. Burgus's Agent86-focused fork of
+> This repository is NeuralDrifter's Agent86-focused fork of
 > [DOSBox-X](https://github.com/joncampbell123/dosbox-x). It retains the
 > upstream emulator and adds local agent-control features for authentic DOS
 > development. The upstream DOSBox-X documentation is preserved below.
