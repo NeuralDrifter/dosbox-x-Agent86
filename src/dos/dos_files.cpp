@@ -39,6 +39,7 @@
 #include "cdrom.h"
 #include "ide.h"
 #include "bios_disk.h"
+#include "imagedisk_eltorito.h"
 
 #define DOS_FILESTART 4
 
@@ -64,6 +65,7 @@ extern const char *dos_clipboard_device_name;
 #include <errno.h>
 #include <time.h>
 
+#ifndef _MACPORTS_TIME_H_
 typedef enum {
     _CLOCK_REALTIME = 0,
 #if !defined(CLOCK_REALTIME)
@@ -178,6 +180,7 @@ int clock_gettime(clockid_t clk_id, struct timespec* tp) {
 #ifdef __cplusplus
 }
 #endif
+#endif // _MACPORTS_TIME_H_
 
 #endif // __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 
@@ -1432,8 +1435,12 @@ bool DOS_Canonicalize(char const * const name,char * const big) {
 # define MIN(a,b) ((a) < (b) ? (a) : (b))
 # define MAX(a,b) ((a) > (b) ? (a) : (b))
 #else
-# define MIN(a,b) std::min(a,b)
-# define MAX(a,b) std::max(a,b)
+# ifndef MIN
+#  define MIN(a,b) std::min(a,b)
+# endif
+# ifndef MAX
+#  define MAX(a,b) std::max(a,b)
+# endif
 #endif
 
 /* Common routine to take larger allocation information (such as FAT32) and convert it to values

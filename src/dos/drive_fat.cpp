@@ -53,6 +53,12 @@
 #include "cross.h"
 #include "bios.h"
 #include "bios_disk.h"
+#include "imagedisk_d88.h"
+#include "imagedisk_eltorito.h"
+#include "imagedisk_int13.h"
+#include "imagedisk_nfd.h"
+#include "imagedisk_teledisk.h"
+#include "imagedisk_vfd.h"
 #include "qcow2_disk.h"
 #include "bitop.h"
 #include "callback.h"
@@ -1191,8 +1197,8 @@ uint8_t fatDrive::readSector(uint32_t sectnum, void * data) {
 	uint32_t head = sectnum / loadedDisk->sectors;
 	uint32_t sector = sectnum % loadedDisk->sectors + 1L;
 #endif
-	return loadedDisk->Read_Sector(head, cylinder, sector, data);
-}	
+	return (uint8_t)loadedDisk->Read_Sector(head, cylinder, sector, data);
+}
 
 uint8_t fatDrive::writeSector(uint32_t sectnum, void * data) {
 	if (absolute) return Write_AbsoluteSector(sectnum, data);
@@ -1210,7 +1216,7 @@ uint8_t fatDrive::writeSector(uint32_t sectnum, void * data) {
 	uint32_t head = sectnum / loadedDisk->sectors;
 	uint32_t sector = sectnum % loadedDisk->sectors + 1L;
 #endif
-	return loadedDisk->Write_Sector(head, cylinder, sector, data);
+	return (uint8_t)loadedDisk->Write_Sector(head, cylinder, sector, data);
 }
 
 uint32_t fatDrive::getSectorCount(void) {
@@ -1564,6 +1570,8 @@ fatDrive::fatDrive(const char* sysFilename, uint32_t bytesector, uint32_t cylsec
 
 		if (ext != NULL && !strcasecmp(ext, ".d88"))
 			loadedDisk = new imageDiskD88(diskfile, fname, (uint32_t)filesize, false);
+		else if (!memcmp(bootcode, "TD\0", 3))
+			loadedDisk = new imageDiskTeledisk(diskfile, fname, (uint32_t)filesize, false);
 		else if (!memcmp(bootcode,"VFD1.",5)) /* FDD files */
 			loadedDisk = new imageDiskVFD(diskfile, fname, (uint32_t)filesize, false);
 		else if (!memcmp(bootcode,"T98FDDIMAGE.R0\0\0",16))
@@ -1622,7 +1630,7 @@ uint8_t fatDrive::Read_AbsoluteSector(uint32_t sectnum, void * data) {
             uint32_t ssect = (sectnum * c) + physToLogAdj;
 
             while (c-- != 0) {
-                if (loadedDisk->Read_AbsoluteSector(ssect++,data) != 0)
+                if (loadedDisk->Read_AbsoluteSector(ssect++,data) != Int13Status::NoError)
                     return 0x05;
 
                 data = (void*)((char*)data + lsz);
@@ -1645,7 +1653,7 @@ uint8_t fatDrive::Write_AbsoluteSector(uint32_t sectnum, void * data) {
             uint32_t ssect = (sectnum * c) + physToLogAdj;
 
             while (c-- != 0) {
-                if (loadedDisk->Write_AbsoluteSector(ssect++,data) != 0)
+                if (loadedDisk->Write_AbsoluteSector(ssect++,data) != Int13Status::NoError)
                     return 0x05;
 
                 data = (void*)((char*)data + lsz);
@@ -1724,8 +1732,11 @@ static bool IsFloppyBPBSane(const FAT_BootSector::bpb_union_t& bpb)
         return false;
     }
 
-    if(bpb.v.BPB_BytsPerSec != 512 &&
-        (!IS_PC98_ARCH || bpb.v.BPB_BytsPerSec != 1024))
+    uint32_t bytes =
+        bpb.v.BPB_BytsPerSec;
+
+    if(bytes < 256 || bytes > 2048 ||
+        (bytes & (bytes - 1)))
         return false;
 
     switch(bpb.v.BPB_SecPerClus) {
@@ -1738,23 +1749,20 @@ static bool IsFloppyBPBSane(const FAT_BootSector::bpb_union_t& bpb)
         return false;
     }
 
+    /**
     if(bpb.v.BPB_RsvdSecCnt < 1 || bpb.v.BPB_RsvdSecCnt > 8)
         return false;
-
+    */
     if(bpb.v.BPB_NumFATs != 1 && bpb.v.BPB_NumFATs != 2)
-        return false;
-
-    if(bpb.v.BPB_RootEntCnt == 0 ||
-        (bpb.v.BPB_RootEntCnt % 32) != 0 ||
-        bpb.v.BPB_RootEntCnt > 512)
         return false;
 
     if(bpb.v.BPB_FATSz16 == 0 || bpb.v.BPB_FATSz16 > 16)
         return false;
 
+    /**
     if(bpb.v.BPB_SecPerTrk < 8 || bpb.v.BPB_SecPerTrk > 36)
         return false;
-
+    */
     if(bpb.v.BPB_NumHeads < 1 || bpb.v.BPB_NumHeads > 2)
         return false;
 
@@ -2198,8 +2206,10 @@ void fatDrive::fatDriveInit(const char *sysFilename, uint32_t bytesector, uint32
                 bootbuffer.magic1 = 0x55;	// to silence warning
                 bootbuffer.magic2 = 0xaa;
             }
-            else if(!IS_PC98_ARCH && loadedDisk->diskSizeK <= 360) {
-                /* Read media descriptor in FAT */
+            else if(!IS_PC98_ARCH) {
+                /* Before DOS 2.0 there was no BPB. DOS 1.x identified the floppy format
+                 * solely by the media descriptor byte at the start of the FAT. Read it and
+                 * build the BPB from that (done before matching against DiskGeometryList). */
                 uint8_t sectorBuffer[512];
                 loadedDisk->Read_AbsoluteSector(1, &sectorBuffer);
                 uint8_t mdesc = sectorBuffer[0];
@@ -2484,6 +2494,7 @@ void fatDrive::fatDriveInit(const char *sysFilename, uint32_t bytesector, uint32
 	/* another fault of this code is that it assumes the sector size of the medium matches
 	 * the BPB_BytsPerSec value of the MS-DOS filesystem. if they don't match, problems
 	 * will result. */
+    /*
 	if (BPB.v.BPB_BytsPerSec != fatDrive::getSectSize()) {
 		LOG_MSG("FAT bytes/sector %u does not match disk image bytes/sector %u",
 			(unsigned int)BPB.v.BPB_BytsPerSec,
@@ -2491,7 +2502,7 @@ void fatDrive::fatDriveInit(const char *sysFilename, uint32_t bytesector, uint32
 		created_successfully = false;
 		return;
 	}
-
+    */
 	/* Filesystem must be contiguous to use absolute sectors, otherwise CHS will be used. */
 	/* MS-DOS block devices can only do absolute sectors, there is no support for C/H/S */
 	absolute = IS_PC98_ARCH || loadedDisk->class_id == imageDisk::ID_MSDOSBLOCKDEV || ((BPB.v.BPB_NumHeads == headscyl) && (BPB.v.BPB_SecPerTrk == cylsector));
@@ -2586,8 +2597,12 @@ void fatDrive::fatDriveInit(const char *sysFilename, uint32_t bytesector, uint32
 # define MIN(a,b) ((a) < (b) ? (a) : (b))
 # define MAX(a,b) ((a) > (b) ? (a) : (b))
 #else
-# define MIN(a,b) std::min(a,b)
-# define MAX(a,b) std::max(a,b)
+# ifndef MIN
+#  define MIN(a,b) std::min(a,b)
+# endif
+# ifndef MAX
+#  define MAX(a,b) std::max(a,b)
+# endif
 #endif
 
 bool fatDrive::AllocationInfo32(uint32_t * _bytes_sector,uint32_t * _sectors_cluster,uint32_t * _total_clusters,uint32_t * _free_clusters) {

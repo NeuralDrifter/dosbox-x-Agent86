@@ -1,5 +1,25 @@
 NEXT VERSION:
-  - 
+  - Added support for mounting TeleDisk (.td0) floppy image files. (cimarronm)
+  - Fixed prompting of working directory option (maron2000)
+  - Relax sanity check of floppy image considering specially formatted disks
+    (maron2000)
+  - Disk sector I/O now returns typed INT 13h status codes instead of a
+    catch-all error, and the INT 13h handler propagates the specific code
+    (seek failed, controller failure, CRC/data error, etc.) into register
+    AH on read/write errors rather than collapsing every failure to 0x04.
+    Also fixes AH being left stale on write errors and a VFD fill-sector
+    write that reported failure after succeeding. (cimarronm)
+  - On non-MSC, only define MIN/MAX if not already defined (skitt)
+  - Fixed FreeDOS XCOPY failed to copy files when destination directory was
+    not specified (maron2000)
+  - IMGMOUNT: Fixed a regression that didn't try loading IMGMAKE.IMG if no 
+    image was specified (maron2000)
+  - Fixed a build error when FFmpeg is upgraded to FFmpeg 9 (maron2000)
+  - Fixed capture and savestate directory locations (maron2000)
+  - Refactored the imageDisk subclasses into their own source files and headers
+    (VFD, D88, NFD, empty drive, INT 13h passthrough, El Torito floppy, and
+    MS-DOS block device), leaving the base imageDisk class and BIOS disk-list
+    plumbing in bios_disk. (cimarronm)
 
 2026.08.02
   - Debugger: normalize 16-bit segmented offsets for address display/lookup and
@@ -28,6 +48,7 @@ NEXT VERSION:
     instead of leaking them. (cimarronm)
   - INT 33h: In PC-98 mode, do not maintain a hide/show display count to match
     real mouse driver behavior (nanshiki)
+  - Fixed crash on loading lang files (macOS) (maron2000)
 
 2026.07.02
   - Prepare for release. This time release OSFREE first so that the normal
