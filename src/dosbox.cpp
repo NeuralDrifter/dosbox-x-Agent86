@@ -4949,13 +4949,22 @@ void DOSBOX_SetupConfigSections(void) {
                       "If set to auto (default), it is enabled if the reported DOS version is at least 7.0.");
     Pstring->SetBasic(true);
 
-    Pbool = secprop->Add_bool("automount",Property::Changeable::WhenIdle,true);
-    Pbool->Set_help("Enable automatic drive mounting in Windows.");
+    Pbool = secprop->Add_bool("automount",Property::Changeable::WhenIdle,false);
+    Pbool->Set_help("Enable on-demand automatic drive mounting in Windows.\n"
+                    "If you type a drive letter that is not mounted, DOSBox-X will attempt to mount it from your host.");
     Pbool->SetBasic(true);
+
+    // Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+    Pbool = secprop->Add_bool("automount_c",Property::Changeable::WhenIdle,false);
+    Pbool->Set_help("Master safety switch for the host C: drive. If false, neither automount nor automountall will ever mount the host's C: drive.");
+
+    Pint = secprop->Add_int("bridge_port",Property::Changeable::OnlyAtStart,8090);
+    Pint->SetMinMax(0,65535);
+    Pint->Set_help("Loopback TCP port for CTTY BRIDGE. Set to 0 to disable the bridge device.");
 
     Pstring = secprop->Add_string("automountall",Property::Changeable::WhenIdle,"false");
     Pstring->Set_values(truefalsequietopts);
-    Pstring->Set_help("Automatically mount all available Windows drives at start.");
+    Pstring->Set_help("Automatically mount all available Windows drives at start (subject to automount_c).");
     Pstring->SetBasic(true);
 
     Pbool = secprop->Add_bool("mountwarning",Property::Changeable::WhenIdle,true);

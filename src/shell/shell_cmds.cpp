@@ -4604,6 +4604,69 @@ void DOS_Shell::CMD_DXCAPTURE(char * args) {
 #endif
 
 #if !defined(OSFREE)
+// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+bool g_bridge_ctty_active = false;
+bool g_bridge_allow_mount = false;
+
+// Host-exposing commands (MOUNT/IMGMOUNT/IMGMAKE/BOOT) are refused while the
+// bridge is live unless the operator opted in at activation time.
+bool DOS_BridgeBlocksHostAccess()
+{
+	return g_bridge_ctty_active && !g_bridge_allow_mount;
+}
+
+static bool IsAutomountAllEnabled()
+{
+	const auto *dos_section =
+	        static_cast<Section_prop *>(control->GetSection("dos"));
+	const char *value = dos_section->Get_string("automountall");
+	return strcmp(value, "0") && strcasecmp(value, "false");
+}
+
+static void WriteBridgeExposureWarning(DOS_Shell &shell,
+                                       const bool automountall_is_active)
+{
+	shell.WriteOut("\nWARNING: CTTY BRIDGE is now active. AI Agents connected to the TCP\n");
+	shell.WriteOut("bridge will have full read/write access to ANY host folders or drives\n");
+	shell.WriteOut("that you have currently mounted in this DOSBox-X session.\n");
+	if (automountall_is_active) {
+		shell.WriteOut("CRITICAL: 'automountall' is ENABLED. Your host drives have been\n");
+		shell.WriteOut("automatically mounted and are now fully exposed to the AI.\n");
+	}
+	shell.WriteOut("Please ensure no sensitive host directories are mounted.\n\n");
+}
+
+static bool PromptBridgeMountPolicy(DOS_Shell &shell)
+{
+	shell.WriteOut("Allow the connected agent to run MOUNT, IMGMOUNT, IMGMAKE and BOOT\n");
+	shell.WriteOut("while the bridge is active? These can expose host paths that are\n");
+	shell.WriteOut("not mounted right now. Answer at this keyboard. [y/N] ");
+	for (;;) {
+		uint8_t c = 0;
+		uint16_t n = 1;
+		if (!DOS_ReadFile(STDIN, &c, &n) || n == 0)
+			break;
+		if (c == 'y' || c == 'Y') {
+			shell.WriteOut("Y\n\n");
+			return true;
+		}
+		if (c == 'n' || c == 'N' || c == 0xD || c == 0x03)
+			break;
+	}
+	shell.WriteOut("N\n\n");
+	return false;
+}
+
+static void SetBridgeCttyState(const bool bridge_is_active)
+{
+	const bool bridge_was_active = g_bridge_ctty_active;
+	g_bridge_ctty_active = bridge_is_active;
+	if (!bridge_is_active)
+		g_bridge_allow_mount = false;
+	if (bridge_was_active && !bridge_is_active)
+		DOS_BridgeDisconnect();
+}
+
 void DOS_Shell::CMD_CTTY(char * args) {
 	HELP("CTTY");
 	/* NTS: This is written to emulate the simplistic parsing in MS-DOS 6.22 */
@@ -4612,24 +4675,39 @@ void DOS_Shell::CMD_CTTY(char * args) {
 
 	/* args has leading space? */
 	args = trim(args);
-
+	const bool want_bridge = strcasecmp(args, "BRIDGE") == 0;
+	const bool automountall_is_active =
+	        want_bridge && IsAutomountAllEnabled();
 	/* must be device */
 	if (DOS_FindDevice(args) == DOS_DEVICES) {
 		WriteOut("Invalid device - %s\n", args);
 		return;
 	}
+	if (want_bridge && !DOS_BridgeEnsureListening()) {
+		WriteOut("Unable to start CTTY BRIDGE listener. Check bridge_port and whether the port is already in use.\n");
+		return;
+	}
 
 	/* close STDIN/STDOUT/STDERR and replace with new handle */
 	if (!DOS_OpenFile(args,OPEN_READWRITE,&handle)) {
+		if (want_bridge)
+			DOS_BridgeDisconnect();
 		WriteOut("Unable to open device - %s\n", args);
 		return;
 	}
+
+	if (want_bridge)
+		WriteBridgeExposureWarning(*this, automountall_is_active);
+
+	if (want_bridge)
+		g_bridge_allow_mount = PromptBridgeMountPolicy(*this);
 
 	for (i=0;i < 3;i++) {
 		DOS_CloseFile(i);
 		DOS_ForceDuplicateEntry(handle,i);
 	}
 	DOS_CloseFile(handle);
+	SetBridgeCttyState(want_bridge);
 }
 #endif
 

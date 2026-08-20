@@ -35,6 +35,7 @@
 unsigned int BeepDuration();
 
 #include "dev_con.h"
+#include "dev_bridge.h"
 #include <fstream>
 
 #if (!defined(WIN32) && defined(C_SDL2)) || defined(MACOSX)
@@ -43,6 +44,7 @@ host_cnv_char_t *CodePageGuestToHost(const char *s);
 #endif
 
 DOS_Device * Devices[DOS_DEVICES] = {NULL};
+static device_BRIDGE *bridge_device = nullptr;
 extern std::map<int, int> lowboxdrawmap;
 extern int dos_clipboard_device_access;
 extern bool morelen, halfwidthkana, showdbcs;
@@ -900,6 +902,9 @@ static void DelDeviceUpdateFiles(const char * deviceName) {
 void DOS_DelDevice(DOS_Device * dev) {
 // We will destroy the device if we find it in our list.
 	if (dev == NULL) return E_Exit("DOS_DelDevice() with null ptr");
+	// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+	if (bridge_device && !strcmp(bridge_device->name, dev->name))
+		bridge_device = nullptr;
 
 	/* We should match names, because neither files nor devices have a proper
 	 * ID. The address of neither DOS_File nor DOS_Device objects is a proper
@@ -926,6 +931,7 @@ void DOS_DelDevice(DOS_Device * dev) {
 }
 
 void DOS_ShutdownDevices(void) {
+	bridge_device = nullptr;
 	for (Bitu i=0;i < DOS_DEVICES;i++) {
 		if (Devices[i] != NULL) {
 //			LOG_MSG("DOS: Shutting down device %s (%p)\n",Devices[i]->name,(void*)Devices[i]);
@@ -990,6 +996,11 @@ void DOS_SetupDevices(void) {
 	DOS_Device * newdev;
 	DOS_CON=new device_CON(); newdev=DOS_CON;
 	DOS_AddDevice(newdev);
+	const int bridge_port =
+	        static_cast<Section_prop *>(control->GetSection("dos"))
+	                ->Get_int("bridge_port");
+	bridge_device = new device_BRIDGE(static_cast<uint16_t>(bridge_port));
+	DOS_AddDevice(bridge_device);
 	DOS_Device * newdev2;
 	newdev2=new device_NUL();
 	DOS_AddDevice(newdev2);
@@ -1005,6 +1016,18 @@ void DOS_SetupDevices(void) {
 		DOS_AddDevice(newdev4);
 	}
 #endif
+}
+
+// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+bool DOS_BridgeEnsureListening()
+{
+	return bridge_device && bridge_device->EnsureListening();
+}
+
+void DOS_BridgeDisconnect()
+{
+	if (bridge_device)
+		bridge_device->Deactivate();
 }
 
 /* PC-98 INT DC CL=0x10 AH=0x00 DL=cjar */

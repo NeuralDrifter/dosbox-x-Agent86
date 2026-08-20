@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "dos-bridge": {
+      "command": "python",
+      "args": [
+        "${extensionPath}${/}scripts${/}mcp_server.py"
+      ]
+    }
+  }
+}

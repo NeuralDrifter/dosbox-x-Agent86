@@ -1,0 +1,20 @@
+{
+  "name": "dosbox-x-openai",
+  "interface": {
+    "displayName": "DOSBox-X OpenAI Plugins"
+  },
+  "plugins": [
+    {
+      "name": "dos-bridge",
+      "source": {
+        "source": "local",
+        "path": "./dos-bridge"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

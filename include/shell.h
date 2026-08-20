@@ -42,6 +42,15 @@ class DOS_Shell;
 /* first_shell is used to add and delete stuff from the shell env 
  * by "external" programs. (config) */
 extern DOS_Shell * first_shell;
+#if !defined(OSFREE)
+extern bool g_bridge_ctty_active;
+
+// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+extern bool g_bridge_allow_mount;
+bool DOS_BridgeBlocksHostAccess();
+bool DOS_BridgeEnsureListening();
+void DOS_BridgeDisconnect();
+#endif
 
 const std::map<int, std::string> langcp_map {
 	{437, "en_US"},

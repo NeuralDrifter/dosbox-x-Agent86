@@ -1,0 +1,24 @@
+{
+  "name": "dosbox-x-plugins",
+  "description": "Claude Code plugins that bridge into a running DOSBox-X guest.",
+  "owner": {
+    "name": "Michael P. Burgus",
+    "url": "https://github.com/NeuralDrifter"
+  },
+  "plugins": [
+    {
+      "name": "dos-bridge",
+      "source": "./dos-bridge",
+      "displayName": "DOSBox-X Bridge",
+      "description": "Execute serialized commands and bounded text-file writes inside DOSBox-X through the loopback CTTY BRIDGE.",
+      "version": "1.2.0",
+      "author": {
+        "name": "Michael P. Burgus",
+        "url": "https://github.com/NeuralDrifter"
+      },
+      "homepage": "https://github.com/NeuralDrifter/dosbox-x",
+      "repository": "https://github.com/NeuralDrifter/dosbox-x",
+      "keywords": ["dos", "dosbox-x", "borland", "turbo-c", "mcp", "tsr", "retrocomputing"]
+    }
+  ]
+}

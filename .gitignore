@@ -7,6 +7,8 @@
 # build artifacts
 bin
 obj
+__pycache__/
+*.py[cod]
 
 # autoconfig nonsense
 config.h.in
@@ -86,6 +88,8 @@ vs/libpng/linux-build/*
 
 /vs/sdl2/linux-build
 /vs/sdl2/linux-host
+
+/vs/sdl2net/linux-host
 
 /vs/libpdcurses/wincon/xmas.exe
 /vs/libpdcurses/wincon/worm.exe

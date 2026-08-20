@@ -1,0 +1,12 @@
+{
+  "name": "dos-bridge",
+  "version": "1.2.0",
+  "description": "Execute serialized commands and bounded text-file writes inside DOSBox-X through the loopback CTTY BRIDGE.",
+  "author": {
+    "name": "Michael P. Burgus",
+    "url": "https://github.com/NeuralDrifter"
+  },
+  "homepage": "https://github.com/NeuralDrifter/dosbox-x",
+  "repository": "https://github.com/NeuralDrifter/dosbox-x",
+  "mcpServers": "./.mcp.json"
+}

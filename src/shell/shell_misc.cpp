@@ -63,7 +63,35 @@ extern bool ttf_dosv;
 #endif
 extern std::map<int, int> pc98boxdrawmap;
 
+// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+#if !defined(OSFREE)
+static bool BridgeHasMountedHostPath()
+{
+	for (int index = 0; index < DOS_DRIVES; ++index) {
+		if (!Drives[index])
+			continue;
+		const char *info = Drives[index]->GetInfo();
+		if (info && !strncasecmp(info, "local directory", 15))
+			return true;
+	}
+	return false;
+}
+
+static bool CanAutoMountHostDrive(const Section_prop &dos_section,
+                                  const char drive_letter)
+{
+	if (!dos_section.Get_bool("automount") || g_bridge_ctty_active)
+		return false;
+	return drive_letter != 'C' || dos_section.Get_bool("automount_c");
+}
+#endif
+
 void DOS_Shell::ShowPrompt(void) {
+#if !defined(OSFREE)
+	if (g_bridge_ctty_active && BridgeHasMountedHostPath())
+		WriteOut("\n[SYSTEM REMINDER: DOSBox-X has host drive exposure active. Verify your current drive before executing destructive commands.]\n");
+#endif
+
 	char dir[DOS_PATHLENGTH];
 	dir[0] = 0; //DOS_GetCurrentDir doesn't always return something. (if drive is messed up)
 	DOS_GetCurrentDir(0,dir,uselfn);
@@ -1483,7 +1511,12 @@ bool DOS_Shell::Execute(char* name, const char* args) {
  #if !defined(OSFREE)
             char char_no_upper = toupper(char_no);
             char char_yes_upper = toupper(char_yes);
-            if(!sec->Get_bool("automount")) { WriteOut(MSG_Get("SHELL_EXECUTE_DRIVE_NOT_FOUND"),toupper(name[0])); return true; }
+			const char drive_letter = toupper(name[0]);
+			if (!CanAutoMountHostDrive(*sec, drive_letter)) {
+				WriteOut(MSG_Get("SHELL_EXECUTE_DRIVE_NOT_FOUND"),
+				         drive_letter);
+				return true;
+			}
 			// automount: attempt direct letter to drive map.
 			int type=GetDriveType(name);
 			if(!mountwarning && type!=DRIVE_NO_ROOT_DIR) goto continue_1;
