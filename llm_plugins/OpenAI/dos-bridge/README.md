@@ -8,7 +8,8 @@ depend on the Antigravity package remaining at a particular path.
 
 - Serialized DOS command execution over loopback TCP.
 - Bounded CP437 output and fixed MCP command timeouts.
-- DOS 8.3 text-file writes restricted to configured drives.
+- DOS 8.3 text-file writes to any drive already mounted by the user.
+- Explicit console release plus automatic recovery after client disconnects.
 - `dos-development` guidance for discovery, Borland development, and testing.
 - `dos-tsr-development` guidance for interrupt-safe resident utilities and
   SideKick-style popup architecture.
@@ -63,23 +64,26 @@ automount_c = false
 ```
 
 Activate the listener manually at the DOS prompt with `CTTY BRIDGE`. Restore
-the local console and close the listener with `CTTY CON`.
+the local console and close the listener with `CTTY CON` or the MCP
+`release_dos_console` tool. A client disconnect also restores `CON`
+automatically, and a DOSBox-X reset clears bridge restrictions.
 
 ## Runtime configuration
 
 - `DOS_BRIDGE_PORT`: loopback port, default `8090`.
-- `DOS_BRIDGE_WRITE_DRIVES`: comma-separated drives available to the dedicated
-  write tool, default `A`.
 
-The general command tool can modify any drive already mounted in DOSBox-X.
-Mounted host directories are not an isolated sandbox.
+The command and file-writing tools can modify any drive already mounted in
+DOSBox-X. Mounting new host paths remains governed separately by DOSBox-X's
+operator-controlled bridge policy. Mounted host directories are not an
+isolated sandbox.
 
 ## Codex approvals
 
-Both MCP tools advertise that they can mutate or destroy data. This is
-intentional: DOS commands and file writes can affect directories mounted from
-the host. Keep Codex tool approval prompts enabled and approve each operation
-only after checking its command, target drive, and path.
+The command and file-writing tools advertise that they can mutate or destroy
+data. This is intentional: DOS commands and file writes can affect directories
+mounted from the host. The console-release tool is non-destructive and
+idempotent. Keep Codex tool approval prompts enabled and approve mutations only
+after checking their command, target drive, and path.
 
 ## Execution model
 

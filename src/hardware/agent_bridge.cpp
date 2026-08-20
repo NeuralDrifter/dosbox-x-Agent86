@@ -1,6 +1,6 @@
 /*
  *  Agent Telemetry & Remote Execution Subsystem (A-TRES) for DOSBox-X
- *  Copyright (C) 2026 Michael P. Burgus (https://github.com/NeuralDrifter)
+ *  Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
  *  Cross-platform C++ Subsystem implementation
  */
 

@@ -931,6 +931,10 @@ void DOS_DelDevice(DOS_Device * dev) {
 }
 
 void DOS_ShutdownDevices(void) {
+#if !defined(OSFREE)
+	// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+	DOS_BridgeResetCttyState();
+#endif
 	bridge_device = nullptr;
 	for (Bitu i=0;i < DOS_DEVICES;i++) {
 		if (Devices[i] != NULL) {
@@ -1021,7 +1025,7 @@ void DOS_SetupDevices(void) {
 // Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
 bool DOS_BridgeEnsureListening()
 {
-	return bridge_device && bridge_device->EnsureListening();
+	return bridge_device && bridge_device->Activate();
 }
 
 void DOS_BridgeDisconnect()

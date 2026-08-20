@@ -48,6 +48,10 @@ console and close the bridge listener with:
 CTTY CON
 ```
 
+The MCP `release_dos_console` tool performs the same handoff. If the client
+disconnects, DOSBox-X automatically restores `CON`; a DOSBox-X reset also
+clears bridge-only restrictions.
+
 ## Antigravity installation
 
 Validate and install this directory with the Antigravity CLI. Run these
@@ -68,6 +72,7 @@ Claude Code package layout. Claude qualifies the MCP tools as:
 
 - `mcp__dos-bridge__run_dos_command`
 - `mcp__dos-bridge__write_dos_file`
+- `mcp__dos-bridge__release_dos_console`
 
 ## Runtime configuration
 
@@ -75,8 +80,6 @@ The MCP process accepts these environment variables:
 
 - `DOS_BRIDGE_PORT`: loopback port, default `8090`. It must match
   DOSBox-X `bridge_port`.
-- `DOS_BRIDGE_WRITE_DRIVES`: comma-separated drive letters allowed by the
-  dedicated file-writing tool, default `A`.
 
 The command tool has a fixed 60-second MCP timeout. A timeout or transport
 failure leaves command completion unknown; inspect DOS state before retrying a
@@ -96,10 +99,12 @@ command may time out with an unknown completion state.
 - The TCP listener binds only to `127.0.0.1`.
 - The MCP server serializes requests through one persistent connection.
 - Commands and output are bounded, and text uses DOS code page 437.
-- The file-writing tool accepts only absolute DOS 8.3 paths on explicitly
-  allowed drives.
-- The general command tool can still modify any drive already mounted in
-  DOSBox-X. A mounted host directory is not an isolated sandbox.
+- The file-writing tool accepts only absolute DOS 8.3 paths on drives already
+  mounted by the user.
+- The command and file-writing tools can modify any drive already mounted in
+  DOSBox-X. Mounting new host paths remains governed separately by DOSBox-X's
+  operator-controlled bridge policy. A mounted host directory is not an
+  isolated sandbox.
 - Do not probe or switch to unconfirmed host-backed drives. Run `MOUNT` once to
   inspect the mappings already exposed by the user.
 

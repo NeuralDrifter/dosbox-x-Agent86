@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Model Context Protocol (MCP) Server Bridge for DOSBox-X Agent Subsystem (A-TRES)
-Copyright (C) 2026 Michael P. Burgus (https://github.com/NeuralDrifter)
+Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
 
 Exposes DOSBox control and terminal streaming functions to LLMs (AGY, Claude, Codex).
 """

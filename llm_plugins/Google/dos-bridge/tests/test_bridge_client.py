@@ -91,6 +91,9 @@ class FakeBridgeServer:
             if not chunk:
                 return
             request.extend(chunk)
+            if b"CTTY CON\r" in request:
+                self.requests.append(bytes(request))
+                return
             end_match = re.search(
                 rb"echo (__DOSBRIDGE_END_[A-F0-9]+__)\r", bytes(request)
             )
@@ -149,7 +152,7 @@ class DosBridgeClientTests(unittest.TestCase):
 
     def test_write_accepts_confirmed_success(self):
         with FakeBridgeServer() as server, DosBridgeClient(port=server.port) as client:
-            result = client.write_file("A:\\SRC\\GAME.C", "hello\n")
+            result = client.write_file("D:\\SRC\\GAME.C", "hello\n")
             self.assertIn("written successfully", result)
 
     def test_write_preflight_failure_never_sends_content(self):
@@ -163,10 +166,18 @@ class DosBridgeClientTests(unittest.TestCase):
         self.assertNotIn(secret.encode("cp437"), sent)
         self.assertNotIn(b"copy con", sent)
 
-    def test_write_path_is_confined_to_allowed_83_drive(self):
-        self.assertEqual(_validate_write_path("a:/src/game.c"), "A:\\src\\game.c")
+    def test_write_path_accepts_any_valid_dos_drive(self):
+        accepted = {
+            "a:/src/game.c": "A:\\src\\game.c",
+            "C:\\GAME.C": "C:\\GAME.C",
+            "d:\\work\\test.pas": "D:\\work\\test.pas",
+            "Z:\\TOOLS.TXT": "Z:\\TOOLS.TXT",
+        }
+        for path, expected in accepted.items():
+            with self.subTest(path=path):
+                self.assertEqual(_validate_write_path(path), expected)
+
         rejected = (
-            "C:\\GAME.C",
             "A:\\..\\GAME.C",
             "A:\\LONGFILENAME.C",
             "A:\\GAME.C & DEL A:\\*.*",
@@ -176,13 +187,15 @@ class DosBridgeClientTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     _validate_write_path(path)
 
-    def test_write_drive_configuration_is_validated(self):
-        with patch.dict(os.environ, {"DOS_BRIDGE_WRITE_DRIVES": "A,invalid"}):
-            with self.assertRaisesRegex(BridgeError, "DOS_BRIDGE_WRITE_DRIVES"):
-                _validate_write_path("A:\\GAME.C")
+    def test_release_console_sends_ctty_con_and_closes_connection(self):
+        with FakeBridgeServer() as server:
+            client = DosBridgeClient(port=server.port)
 
-        with patch.dict(os.environ, {"DOS_BRIDGE_WRITE_DRIVES": "A,B"}):
-            self.assertEqual(_validate_write_path("B:\\GAME.C"), "B:\\GAME.C")
+            result = client.release_console()
+
+            self.assertIn("released", result)
+            self.assertEqual(server.requests, [b"CTTY CON\r"])
+            self.assertIsNone(client._socket)
 
     def test_constructor_rejects_invalid_network_limits(self):
         invalid_arguments = (

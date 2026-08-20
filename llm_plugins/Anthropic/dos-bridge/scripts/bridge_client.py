@@ -17,6 +17,7 @@ DEFAULT_PORT = 8090
 CONNECT_TIMEOUT_SECONDS = 3.0
 COMMAND_TIMEOUT_SECONDS = 60.0
 WRITE_TIMEOUT_SECONDS = 30.0
+RELEASE_TIMEOUT_SECONDS = 3.0
 MAX_COMMAND_BYTES = 4096
 MAX_FILE_BYTES = 64 * 1024
 MAX_OUTPUT_BYTES = 1024 * 1024
@@ -27,7 +28,6 @@ DOS_FILENAME = rf"{DOS_COMPONENT}(?:\.[A-Za-z0-9_-]{{1,3}})?"
 DOS_PATH_PATTERN = re.compile(
     rf"^(?P<drive>[A-Za-z]):\\(?:{DOS_COMPONENT}\\)*{DOS_FILENAME}$"
 )
-DOS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]$")
 
 
 class BridgeError(RuntimeError):
@@ -63,6 +63,29 @@ class DosBridgeClient:
     def close(self) -> None:
         with self._lock:
             self._close_unlocked()
+
+    def release_console(
+        self, timeout: float = RELEASE_TIMEOUT_SECONDS
+    ) -> str:
+        request_timeout = _validate_timeout(timeout)
+        release_requested = False
+        with self._lock:
+            try:
+                connection = self._ensure_connected_unlocked()
+                self._discard_pending_prompt_unlocked(connection)
+                connection.sendall(b"CTTY CON\r")
+                release_requested = True
+                connection.shutdown(socket.SHUT_WR)
+                self._wait_for_disconnect_unlocked(connection, request_timeout)
+            except OSError as error:
+                # CTTY CON commonly resets the socket as the BRIDGE handles close.
+                if not release_requested:
+                    raise BridgeError(
+                        f"DOS bridge transport failed: {error}"
+                    ) from error
+            finally:
+                self._close_unlocked()
+        return "DOS console released to the local DOSBox-X window."
 
     def run_command(
         self, command: str, timeout: float = COMMAND_TIMEOUT_SECONDS
@@ -199,6 +222,18 @@ class DosBridgeClient:
                     "cp437", errors="replace"
                 )
 
+    def _wait_for_disconnect_unlocked(
+        self, connection: socket.socket, timeout: float
+    ) -> None:
+        connection.settimeout(timeout)
+        try:
+            while connection.recv(RECEIVE_CHUNK_BYTES):
+                pass
+        except socket.timeout as error:
+            raise BridgeError(
+                "DOSBox-X did not release the bridge console"
+            ) from error
+
     def _close_unlocked(self) -> None:
         if self._socket is not None:
             try:
@@ -263,13 +298,7 @@ def _validate_write_path(filename: str) -> str:
         raise ValueError(
             "filename must be an absolute DOS 8.3 path such as A:\\SOURCE\\GAME.C"
         )
-    allowed_drives = _configured_write_drives()
     drive = match.group("drive").upper()
-    if drive not in allowed_drives:
-        raise ValueError(
-            f"writes to drive {drive}: are disabled; allowed drives: "
-            + ", ".join(sorted(allowed_drives))
-        )
     return drive + normalized_path[1:]
 
 
@@ -279,21 +308,6 @@ def _sibling_temp_path(normalized_path: str) -> str:
     if not directory or directory.endswith(":"):
         directory = normalized_path[:2]
     return f"{directory}\\BR{secrets.token_hex(3).upper()}.TMP"
-
-
-def _configured_write_drives() -> frozenset[str]:
-    drive_names = tuple(
-        drive.strip()
-        for drive in os.getenv("DOS_BRIDGE_WRITE_DRIVES", "A").split(",")
-        if drive.strip()
-    )
-    if not drive_names or any(
-        not DOS_DRIVE_PATTERN.fullmatch(drive) for drive in drive_names
-    ):
-        raise BridgeError(
-            "DOS_BRIDGE_WRITE_DRIVES must contain comma-separated drive letters"
-        )
-    return frozenset(drive.upper() for drive in drive_names)
 
 
 def _encode_file_content(content: str) -> bytes:

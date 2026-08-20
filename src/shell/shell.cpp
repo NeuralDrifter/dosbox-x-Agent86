@@ -1295,6 +1295,20 @@ void DOS_Shell::Run(void) {
 
 			if (echo) ShowPrompt();
 			InputCommand(input_line);
+
+#if !defined(OSFREE)
+			// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+			if (input_eof && g_bridge_ctty_active) {
+				char console_device[] = "CON";
+				CMD_CTTY(console_device);
+				if (!g_bridge_ctty_active) {
+					input_eof = false;
+					WriteOut("\nCTTY BRIDGE disconnected; console restored to CON.\n");
+					continue;
+				}
+			}
+#endif
+
 			if (echo && !input_eof) WriteOut("\n");
 
 			/* Bugfix: CTTY NUL will return immediately, the shell input will return

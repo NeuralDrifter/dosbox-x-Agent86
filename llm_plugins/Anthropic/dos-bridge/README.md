@@ -6,7 +6,8 @@ inside the emulator.
 
 It ships:
 
-- an MCP server (`dos-bridge`) exposing `run_dos_command` and `write_dos_file`
+- an MCP server (`dos-bridge`) exposing `run_dos_command`, `write_dos_file`,
+  and `release_dos_console`
 - a `/dos` slash command for one-off DOS commands
 - two skills:
   - `dos-development` — DOS discovery, editing, compilation, and execution
@@ -50,6 +51,10 @@ console and close the bridge listener with:
 CTTY CON
 ```
 
+The MCP `release_dos_console` tool performs the same handoff. If the client
+disconnects, DOSBox-X automatically restores `CON`; a DOSBox-X reset also
+clears bridge-only restrictions.
+
 ## Installation
 
 This plugin is published through the `dosbox-x-plugins` marketplace defined in
@@ -83,6 +88,7 @@ appear qualified — expect the form `mcp__plugin_<plugin>_<server>__<tool>`:
 
 - `mcp__plugin_dos-bridge_dos-bridge__run_dos_command`
 - `mcp__plugin_dos-bridge_dos-bridge__write_dos_file`
+- `mcp__plugin_dos-bridge_dos-bridge__release_dos_console`
 
 The skills instruct Claude to use whatever name is actually present in its tool
 list, so a rename of the plugin or the server does not break them.
@@ -93,8 +99,6 @@ The MCP process accepts these environment variables:
 
 - `DOS_BRIDGE_PORT`: loopback port, default `8090`. It must match
   DOSBox-X `bridge_port`.
-- `DOS_BRIDGE_WRITE_DRIVES`: comma-separated drive letters allowed by the
-  dedicated file-writing tool, default `A`.
 
 The command tool has a fixed 60-second MCP timeout. A timeout or transport
 failure leaves command completion unknown; inspect DOS state before retrying a
@@ -114,10 +118,12 @@ command may time out with an unknown completion state.
 - The TCP listener binds only to `127.0.0.1`.
 - The MCP server serializes requests through one persistent connection.
 - Commands and output are bounded, and text uses DOS code page 437.
-- The file-writing tool accepts only absolute DOS 8.3 paths on explicitly
-  allowed drives.
-- The general command tool can still modify any drive already mounted in
-  DOSBox-X. A mounted host directory is not an isolated sandbox.
+- The file-writing tool accepts only absolute DOS 8.3 paths on drives already
+  mounted by the user.
+- The command and file-writing tools can modify any drive already mounted in
+  DOSBox-X. Mounting new host paths remains governed separately by DOSBox-X's
+  operator-controlled bridge policy. A mounted host directory is not an
+  isolated sandbox.
 - Do not probe or switch to unconfirmed host-backed drives. Run `MOUNT` once to
   inspect the mappings already exposed by the user.
 
@@ -137,7 +143,7 @@ python -m unittest discover -s tests -v
 .mcp.json                    MCP server definition (${CLAUDE_PLUGIN_ROOT}-relative)
 commands/dos.md              /dos slash command
 scripts/bridge_client.py     hardened loopback bridge client
-scripts/mcp_server.py        FastMCP server exposing the two tools
+scripts/mcp_server.py        FastMCP server exposing the three tools
 skills/                      dos-development, dos-tsr-development
 tests/                       transport tests, no emulator required
 ```

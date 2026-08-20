@@ -4662,9 +4662,15 @@ static void SetBridgeCttyState(const bool bridge_is_active)
 	const bool bridge_was_active = g_bridge_ctty_active;
 	g_bridge_ctty_active = bridge_is_active;
 	if (!bridge_is_active)
-		g_bridge_allow_mount = false;
+		DOS_BridgeResetCttyState();
 	if (bridge_was_active && !bridge_is_active)
 		DOS_BridgeDisconnect();
+}
+
+void DOS_BridgeResetCttyState()
+{
+	g_bridge_ctty_active = false;
+	g_bridge_allow_mount = false;
 }
 
 void DOS_Shell::CMD_CTTY(char * args) {

@@ -36,6 +36,9 @@ extern bool INT28_AllowOnce;
 extern bool DOS_BreakConioFlag;
 extern unsigned char pc98_function_row_mode;
 
+// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+extern "C" bool AGENT_BRIDGE_FetchCommand(char *buf, size_t max_len);
+
 Bitu INT10_Handler(void);
 Bitu INT16_Handler_Wrap(void);
 
@@ -848,7 +851,6 @@ bool device_CON::Read(uint8_t * data,uint16_t * size) {
 		readcache=0;
 	}
 	while (*size>count) {
-		extern "C" bool AGENT_BRIDGE_FetchCommand(char* buf, size_t max_len);
 		static std::string agent_pending_cmd;
 		if (agent_pending_cmd.empty()) {
 			char bridge_buf[256];

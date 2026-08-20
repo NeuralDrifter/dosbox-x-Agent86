@@ -52,6 +52,15 @@ class McpPackagingTests(unittest.TestCase):
                 self.assertFalse(tool.annotations.idempotentHint)
                 self.assertFalse(tool.annotations.openWorldHint)
 
+    def test_release_tool_reports_nondestructive_annotations(self):
+        tool = mcp_server.mcp._tool_manager.get_tool("release_dos_console")
+
+        self.assertIsNotNone(tool)
+        self.assertFalse(tool.annotations.readOnlyHint)
+        self.assertFalse(tool.annotations.destructiveHint)
+        self.assertTrue(tool.annotations.idempotentHint)
+        self.assertFalse(tool.annotations.openWorldHint)
+
 
 if __name__ == "__main__":
     unittest.main()

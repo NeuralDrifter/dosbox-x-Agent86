@@ -28,7 +28,8 @@ public:
 	explicit device_BRIDGE(const uint16_t port)
 	        : listen_port(port),
 	          listen_socket(InvalidBridgeSocket),
-	          connection_socket(InvalidBridgeSocket)
+	          connection_socket(InvalidBridgeSocket),
+	          session_active(false)
 #if defined(_WIN32) || defined(WIN32)
 	          , winsock_started(false)
 #endif
@@ -45,6 +46,15 @@ public:
 		if (winsock_started)
 			WSACleanup();
 #endif
+	}
+
+	bool Activate()
+	{
+		session_active = true;
+		if (EnsureListening())
+			return true;
+		session_active = false;
+		return false;
 	}
 
 	bool EnsureListening()
@@ -69,13 +79,14 @@ public:
 
 	void Deactivate()
 	{
+		session_active = false;
 		Disconnect();
 		CloseListener();
 	}
 
 	bool Read(uint8_t *data, uint16_t *size) override
 	{
-		if (!EnsureListening()) {
+		if (!session_active || !EnsureListening()) {
 			*size = 0;
 			return false;
 		}
@@ -83,7 +94,7 @@ public:
 		const uint16_t requested = *size;
 		uint16_t received = 0;
 		while (received < requested) {
-			if (!EnsureListening()) {
+			if (!session_active || !EnsureListening()) {
 				*size = received;
 				return false;
 			}
@@ -97,8 +108,11 @@ public:
 					received += static_cast<uint16_t>(count);
 					break;
 				}
-				if (count == 0 || !WouldBlock())
-					Disconnect();
+				if (count == 0 || !WouldBlock()) {
+					Deactivate();
+					*size = received;
+					return false;
+				}
 			}
 			if (received == 0)
 				CALLBACK_Idle();
@@ -109,7 +123,7 @@ public:
 
 	bool Write(const uint8_t *data, uint16_t *size) override
 	{
-		if (!EnsureListening()) {
+		if (!session_active || !EnsureListening()) {
 			*size = 0;
 			return false;
 		}
@@ -130,7 +144,7 @@ public:
 				continue;
 			}
 			if (count == 0 || !WouldBlock() || ++wait_count > MaxWriteWaits) {
-				Disconnect();
+				Deactivate();
 				*size = sent;
 				return false;
 			}
@@ -285,6 +299,7 @@ private:
 	const uint16_t listen_port;
 	bridge_socket_t listen_socket;
 	bridge_socket_t connection_socket;
+	bool session_active;
 #if defined(_WIN32) || defined(WIN32)
 	bool winsock_started;
 #endif
