@@ -1,5 +1,121 @@
 
-**Welcome to the DOSBox-X project homepage located on GitHub.**
+**Welcome to DOSBox-X Agent86.**
+
+> [!IMPORTANT]
+> This repository is Michael P. Burgus's Agent86-focused fork of
+> [DOSBox-X](https://github.com/joncampbell123/dosbox-x). It retains the
+> upstream emulator and adds local agent-control features for authentic DOS
+> development. The upstream DOSBox-X documentation is preserved below.
+
+## About the Agent86 fork
+
+DOSBox-X Agent86 is intended for developing, compiling, and testing software
+inside the emulated DOS environment while an MCP-capable coding agent controls
+the DOS command prompt. The primary supported integration is the loopback-only
+`CTTY BRIDGE` device and the vendor packages under [`llm_plugins/`](llm_plugins/).
+
+### How this differs from regular DOSBox-X
+
+| Capability | Regular DOSBox-X | DOSBox-X Agent86 |
+|---|---|---|
+| DOS and Windows emulation | Yes | Retained from upstream |
+| Agent-controlled DOS prompt | No built-in Agent86 workflow | `CTTY BRIDGE` exposes the DOS console over loopback TCP |
+| MCP tools | Not included | Run DOS commands, write bounded CP437 text files, and release the console |
+| Agent packages | Not included | Self-contained OpenAI/Codex, Anthropic/Claude Code, and Google distributions |
+| Bridge lifecycle | Not applicable | Client disconnect, console release, and emulator reset clear bridge-only restrictions |
+| Host-mount safeguards | Standard DOSBox-X controls | Additional bridge-active checks protect `MOUNT`, `IMGMOUNT`, `IMGMAKE`, and `BOOT` unless the operator explicitly allows mounting |
+
+This is not a replacement for DOSBox-X's normal user interface. Run
+`CTTY BRIDGE` only when an agent session is needed. Releasing the bridge
+returns input and output to the local DOSBox-X window.
+
+### Quick start
+
+1. Build this fork using the normal [DOSBox-X build instructions](BUILD.md), or
+   use a binary built from this repository.
+2. Configure the bridge in the `[dos]` section of `dosbox-x.conf`:
+
+   ```ini
+   bridge_port = 8090
+   automount_c = false
+   ```
+
+   `bridge_port = 0` disables the `BRIDGE` device. The listener accepts only
+   loopback connections.
+3. Start DOSBox-X and deliberately mount only the host directories the DOS
+   session needs. For example:
+
+   ```dos
+   MOUNT A C:\PATH\TO\DOS-PROJECT
+   ```
+
+4. At the DOS prompt, activate the agent console:
+
+   ```dos
+   CTTY BRIDGE
+   ```
+
+5. Use one MCP operation at a time. DOS is single-tasking, and the MCP server
+   serializes requests.
+6. When finished, call the MCP `release_dos_console` tool or run:
+
+   ```dos
+   CTTY CON
+   ```
+
+   A client disconnect also restores `CON` automatically. Run `CTTY BRIDGE`
+   again to start a new session.
+
+### Install the Codex plugin
+
+Python 3.10 or newer is required. From
+[`llm_plugins/OpenAI/dos-bridge`](llm_plugins/OpenAI/dos-bridge/), install the
+portable MCP command:
+
+```powershell
+python -m pip install .
+```
+
+Then register the repository marketplace from [`llm_plugins/OpenAI`](llm_plugins/OpenAI/):
+
+```powershell
+codex plugin marketplace add .
+codex plugin add dos-bridge@dosbox-x-openai
+```
+
+Restart the Codex or ChatGPT desktop client after installation. The MCP server
+provides these tools:
+
+- `run_dos_command(command)` executes one DOS command and returns bounded
+  CP437 output.
+- `write_dos_file(filename, content)` writes a bounded text file using an
+  absolute DOS 8.3 path on any drive already mounted by the operator.
+- `release_dos_console()` ends the bridge session and returns control to the
+  local DOSBox-X window.
+
+Anthropic and Google installation instructions are in their corresponding
+directories under [`llm_plugins/`](llm_plugins/).
+
+### Safety model
+
+This is not a security sandbox. A DOS drive mounted from the host is the real
+host directory: writes, renames, and deletions in DOS affect those files. Keep
+automatic C-drive mounting disabled unless it is deliberately needed, inspect
+the existing mappings with `MOUNT`, and never retry a destructive command
+automatically after a timeout because its completion state is unknown.
+
+Mounting new host paths remains a separate, operator-controlled DOSBox-X
+policy. Removing the old file-writer drive allowlist does not bypass those
+native mount protections; it only lets the MCP writer use drives the operator
+has already exposed.
+
+### Experimental A-TRES subsystem
+
+The fork also contains an experimental Agent Telemetry & Remote Execution
+Subsystem (A-TRES) and a prototype server in
+[`scripts/dosbox_mcp_server.py`](scripts/dosbox_mcp_server.py). It is separate
+from the packaged `CTTY BRIDGE` MCP workflow described above and is not required
+to use the Agent86 development bridge.
 
 ## Useful links
 - [DOSBox-X's website](https://dosbox-x.com) ([https://dosbox-x.com](https://dosbox-x.com) or [http://dosbox-x.software](http://dosbox-x.software))  
@@ -12,6 +128,12 @@
 
 ## Table of Contents
 
+- [About the Agent86 fork](#about-the-agent86-fork)
+  - [How this differs from regular DOSBox-X](#how-this-differs-from-regular-dosbox-x)
+  - [Quick start](#quick-start)
+  - [Install the Codex plugin](#install-the-codex-plugin)
+  - [Safety model](#safety-model)
+  - [Experimental A-TRES subsystem](#experimental-a-tres-subsystem)
 - [Introduction to DOSBox-X](#introduction-to-dosbox-x)
 - [Notable features in DOSBox-X](#notable-features-in-dosbox-x)
 - [DOSBox-X supported platforms and releases](#dosbox-x-supported-platforms-and-releases)

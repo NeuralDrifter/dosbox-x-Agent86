@@ -1,7 +1,7 @@
 ---
 name: dos-development
 description: Instructs the agent on how to write code, discover compilers, and execute commands natively inside MS-DOS via the DOSBox-X TCP bridge. Use this skill when asked to interact with DOS, compile C/C++ or Basic code in DOS, or explore the DOS environment.
-version: 1.3.0
+version: 1.3.1
 ---
 
 # DOSBox-X Development Bridge
