@@ -1,0 +1,4 @@
+interface:
+  display_name: "DOS TSR Development"
+  short_description: "Build safe Borland DOS resident utilities"
+  default_prompt: "Use $dos-tsr-development to design a safe Borland C TSR utility."

@@ -42,6 +42,15 @@ class DOS_Shell;
 /* first_shell is used to add and delete stuff from the shell env 
  * by "external" programs. (config) */
 extern DOS_Shell * first_shell;
+#if !defined(OSFREE)
+// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+extern bool g_bridge_ctty_active;
+extern bool g_bridge_allow_mount;
+bool DOS_BridgeBlocksHostAccess();
+bool DOS_BridgeEnsureListening();
+void DOS_BridgeDisconnect();
+void DOS_BridgeResetCttyState();
+#endif
 
 // The first shell owns the parent PSP for externally initiated DOS commands.
 uint16_t DOS_ShellGetPSP();

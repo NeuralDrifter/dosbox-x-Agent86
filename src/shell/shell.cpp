@@ -175,6 +175,9 @@ int toSetCodePage(DOS_Shell *shell, int newCP, int opt);
 
 #if defined(WIN32)
 void MountAllDrives(bool quiet) {
+    // Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+    const auto *dos_section =
+            static_cast<Section_prop *>(control->GetSection("dos"));
     char str[100];
     uint16_t n = 0;
     uint32_t drives = GetLogicalDrives();
@@ -182,6 +185,9 @@ void MountAllDrives(bool quiet) {
     for (int i=0; i<25; i++) {
         if ((drives & (1<<i)) && !Drives[i])
         {
+            const bool is_host_c_drive = i == 2;
+            if (is_host_c_drive && !dos_section->Get_bool("automount_c"))
+                continue;
             name[0]='A'+i;
             int type=GetDriveType(name);
             if (type!=DRIVE_NO_ROOT_DIR) {
@@ -1295,6 +1301,20 @@ void DOS_Shell::Run(void) {
 
 			if (echo) ShowPrompt();
 			InputCommand(input_line);
+
+#if !defined(OSFREE)
+			// Copyright (c) 2026 Michael P. Burgus - https://github.com/NeuralDrifter
+			if (input_eof && g_bridge_ctty_active) {
+				char console_device[] = "CON";
+				CMD_CTTY(console_device);
+				if (!g_bridge_ctty_active) {
+					input_eof = false;
+					WriteOut("\nCTTY BRIDGE disconnected; console restored to CON.\n");
+					continue;
+				}
+			}
+#endif
+
 			if (echo && !input_eof) WriteOut("\n");
 
 			/* Bugfix: CTTY NUL will return immediately, the shell input will return

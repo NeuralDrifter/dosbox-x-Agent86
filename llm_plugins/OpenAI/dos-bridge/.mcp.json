@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "dos-bridge": {
+      "command": "dos-bridge-mcp",
+      "args": []
+    }
+  }
+}
